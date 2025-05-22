@@ -1,0 +1,6 @@
+docker_container_deploy_image_name: !!null
+docker_container_deploy_build_src: !!null
+docker_container_deploy_container_name: !!null
+docker_container_deploy_build_args: !!null
+docker_container_deploy_run_env_vars: !!null
+docker_container_deploy_run_restart_policy: unless-stopped

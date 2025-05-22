@@ -1,0 +1,91 @@
+---
+
+- name: install docker
+  hosts: all
+  gather_facts: true
+  gather_subset: min
+  become: true
+  tasks:
+
+  - name: get service facts
+    ansible.builtin.service_facts:
+
+  - name: install docker block
+    when: ansible_facts['services']['docker']['state'] != 'running'
+    block:
+
+      # workaround for error "Conflicting values set for option Signed-By regarding source" on slurm dev stand
+      - name: remove docker repo files
+        ansible.builtin.file:
+          path: '{{ item }}'
+          state: absent
+        loop:
+          - /etc/apt/keyrings/docker.gpg
+          - /etc/apt/sources.list.d/docker.list
+        when: ansible_distribution == 'Ubuntu'
+
+      - name: install pip modules
+        include_role: 
+          name: geerlingguy.pip
+
+      - name: install docker
+        include_role: 
+          name: geerlingguy.docker
+
+- name: deploy postgresql
+  hosts: postgresql
+  gather_facts: false
+  become: true
+  tasks:
+
+    - name: create postgresql data folder
+      ansible.builtin.file:
+        path: '{{ postgresql_container_data_dir }}'
+        state: directory
+
+    - name: run postgresql docker container
+      community.docker.docker_container:
+        name: postgresql
+        image: '{{ postgresql_image }}'
+        network_mode: host
+        volumes:
+          - '{{ postgresql_container_data_dir }}:/var/lib/postgresql/data'
+        env:
+          POSTGRES_USER='{{ postgresql_user }}'
+          POSTGRES_PASSWORD='{{ postgresql_password }}'
+          POSTGRES_DB='{{ postgresql_database }}'
+
+- name: deploy redis
+  hosts: redis
+  gather_facts: false
+  become: true
+  tasks:
+
+    - name: create redis data folder
+      ansible.builtin.file:
+        path: '{{ redis_container_data_dir }}'
+        state: directory
+
+    - name: run redis docker container
+      community.docker.docker_container:
+        name: redis
+        image: '{{ redis_image }}'
+        network_mode: host
+        volumes:
+          - '{{ redis_container_data_dir }}:/data'
+        env:
+          REDIS_PASSWORD='{{ redis_password }}'
+
+- name: deploy backend
+  hosts: backend
+  gather_facts: false
+  become: true
+  roles:
+    - docker_container_deploy
+
+- name: deploy frontend
+  hosts: frontend
+  gather_facts: false
+  become: true
+  roles:
+    - docker_container_deploy

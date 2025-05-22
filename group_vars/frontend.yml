@@ -1,0 +1,10 @@
+frontend_image_name: front
+frontend_image_tag: 1.3.4
+
+# docker_container_deploy role vars
+docker_container_deploy_image_name: '{{ frontend_image_name }}:{{ frontend_image_tag }}'
+docker_container_deploy_build_src: frontend-service
+docker_container_deploy_container_name: '{{ frontend_image_name }}'
+docker_container_deploy_build_args:
+  # NEXT_PUBLIC_BACKEND_URL: 'http://vs03:8080'
+  NEXT_PUBLIC_BACKEND_URL: 'http://slurm-talks-back.s074495.edu.slurm.io'

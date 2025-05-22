@@ -1,0 +1,1 @@
+postgresql_container_data_dir: /opt/slurmtalks/psql/data

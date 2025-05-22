@@ -1,0 +1,19 @@
+backend_image_name: back
+backend_image_tag: 1.3.2
+
+# docker_container_deploy role vars
+docker_container_deploy_image_name: '{{ backend_image_name }}:{{ backend_image_tag }}'
+docker_container_deploy_build_src: backend-service
+docker_container_deploy_container_name: '{{ backend_image_name }}'
+
+docker_container_deploy_run_env_vars:
+  POSTGRES_USER: '{{ postgresql_user }}'
+  POSTGRES_PASSWORD: '{{ postgresql_password }}'
+  POSTGRES_DB: '{{ postgresql_database }}'
+  POSTGRES_HOST: "{{ groups['postgresql'][0] }}"
+  POSTGRES_PORT: '5432'
+  REDIS_ADDR: "{{ groups['redis'][0] }}:6379"
+  REDIS_PASSWORD: '{{ redis_password }}'
+  REDIS_DB: '0'
+  JWT_SECRET_KEY: 'your_secret_key'
+  MIGRATE_IN_CODE: 'true'

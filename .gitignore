@@ -1,0 +1,6 @@
+redis/data/
+psql/data/
+roles/geerlingguy.docker
+roles/geerlingguy.pip
+.vscode
+.ansible

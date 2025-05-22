@@ -1,0 +1,45 @@
+- name: assert reqired variables
+  ansible.builtin.assert:
+    that:
+      - docker_container_deploy_image_name is truthy
+      - docker_container_deploy_build_src is truthy
+
+- name: check if image exist
+  community.docker.docker_image_info:
+    name: '{{ docker_container_deploy_image_name }}'
+  register: _docker_container_deploy_image_info
+
+- name: build image locally
+  when: _docker_container_deploy_image_info.images is falsy
+  block:
+
+    - name: create build dir
+      ansible.builtin.tempfile:
+        state: directory
+      register: _docker_container_deploy_tmp_dir
+
+    - name: copy app folder
+      ansible.builtin.copy:
+        src: '{{ docker_container_deploy_build_src }}/'
+        dest: '{{ _docker_container_deploy_tmp_dir.path }}'
+
+    - name: build docker image
+      community.docker.docker_image_build:
+        name: '{{ docker_container_deploy_image_name }}'
+        path: '{{ _docker_container_deploy_tmp_dir.path }}'
+        args: '{{ docker_container_deploy_build_args | default(omit, true) }}'
+
+  always:
+
+    - name: remove build dir
+      ansible.builtin.file:
+        path: '{{ _docker_container_deploy_tmp_dir.path }}'
+        state: absent
+
+- name: run docker container
+  community.docker.docker_container:
+    name: '{{ docker_container_deploy_container_name | default(omit, true) }}'
+    image: '{{ docker_container_deploy_image_name }}'
+    restart_policy: '{{ docker_container_deploy_run_restart_policy }}'
+    network_mode: host
+    env: '{{ docker_container_deploy_run_env_vars | default(omit, true) }}'
