@@ -1,0 +1,189 @@
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: local-storage
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: slurmtalks-psql-pv
+spec:
+  capacity:
+    storage: 5Gi
+  volumeMode: Filesystem
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  local:
+    path: /opt/slurmtalks/psql-data
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - node-1.home.menich.ru
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: slurmtalks-psql-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: local-storage
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: slurmtalks-psql
+spec:
+  serviceName: slurmtalks-psql
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: slurmtalks-psql
+  template:
+    metadata:
+      labels:
+        app: slurmtalks-psql
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: slurmtalks-psql
+          image: postgres:17.4
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: slurmtalks-env-cm
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: slurmtalks-env-secret
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: slurmtalks-env-cm
+                  key: POSTGRES_DB
+          ports:
+            - containerPort: 5432
+              name: postgres
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 1024Mi
+            limits:
+              memory: 2048Mi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: slurmtalks-psql-pvc
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: slurmtalks-psql-svc
+  labels:
+    app: slurmtalks-psql
+spec:
+  clusterIP: None
+  ports:
+    - name: postgres
+      protocol: TCP
+      port: 5432
+      targetPort: 5432
+  selector:
+    app: slurmtalks-psql
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: slurmtalks-psql-users-script
+data:
+  users.sql: |
+    create table if not exists users
+    (
+        id         bigserial
+            primary key,
+        username   text not null
+            constraint uni_users_username
+                unique,
+        email      text not null
+            constraint uni_users_email
+                unique,
+        password   text not null,
+        created_at timestamp with time zone,
+        updated_at timestamp with time zone
+    );
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: slurmtalks-psql-users-job
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 20
+  template:
+    spec:
+      containers:
+        - name: slurmtalks-psql-job
+          image: postgres:17.4
+          env:
+            - name: PGUSER
+              valueFrom:
+                configMapKeyRef:
+                  name: slurmtalks-env-cm
+                  key: POSTGRES_USER
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: slurmtalks-env-secret
+                  key: POSTGRES_PASSWORD
+            - name: PGDATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: slurmtalks-env-cm
+                  key: POSTGRES_DB
+            - name: PGPORT
+              value: "5432"
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              psql -h slurmtalks-psql-svc -f /script/users.sql
+          volumeMounts:
+            - name: slurmtalks-psql-script
+              mountPath: /script
+      volumes:
+        - name: slurmtalks-psql-script
+          configMap:
+            name: slurmtalks-psql-users-script
+      restartPolicy: Never

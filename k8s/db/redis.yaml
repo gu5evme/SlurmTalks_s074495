@@ -1,0 +1,115 @@
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: local-storage
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: slurmtalks-redis-pv
+spec:
+  capacity:
+    storage: 5Gi
+  volumeMode: Filesystem
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  local:
+    path: /opt/slurmtalks/redis-data
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - node-2.home.menich.ru
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: slurmtalks-redis-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: local-storage
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: slurmtalks-redis
+spec:
+  serviceName: slurmtalks-redis
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: slurmtalks-redis
+  template:
+    metadata:
+      labels:
+        app: slurmtalks-redis
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: slurmtalks-redis
+          image: redis:7.4.2-alpine
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: slurmtalks-env-secret
+                  key: REDIS_PASSWORD
+          ports:
+            - containerPort: 6379
+              name: redis
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 1024Mi
+            limits:
+              memory: 2048Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: slurmtalks-redis-pvc
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: slurmtalks-redis-svc
+  labels:
+    app: slurmtalks-redis
+spec:
+  clusterIP: None
+  ports:
+    - name: redis
+      protocol: TCP
+      port: 6379
+      targetPort: 6379
+  selector:
+    app: slurmtalks-redis

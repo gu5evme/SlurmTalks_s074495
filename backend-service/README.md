@@ -19,7 +19,7 @@
   REDIS_DB=0
   
   JWT_SECRET_KEY=your_secret_key
-  MIGRATE_IN_CODE=true # MIGRATION IN PGSQL IN CODE
+  MIGRATE_IN_CODE=true # MIGRATION IN PGSQL IN CODE (RECOMMEND DISABLED IN KUBERNETES MODULE AND USE `sql/users.sql` AS JOB)
     ```  
 - для работы приложения требуется backend
     - все что связано с постами требует коннекта к backend <-> redis

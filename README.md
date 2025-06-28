@@ -61,6 +61,12 @@
 ansible-playbook playbook.yml
 ```
 
+## Развертывание в Kubernetes
+
+Развернуть приложение можно в Kubernetes. В результате создадутся два StatefulSet c PostgreSQL и Redis с локальным хранилищем, а также два развертывания Backend и Frontend с HPA
+
+Все файлы и инструкции для развертывания (за исключением файлов для сборки приложений) расположены в каталоге [k8s](k8s)
+
 # Frontend
 
 ## Системная информация
@@ -173,7 +179,7 @@ ansible-playbook playbook.yml
   REDIS_DB=0
 
   JWT_SECRET_KEY=your_secret_key
-  MIGRATE_IN_CODE=true # MIGRATION IN PGSQL IN CODE
+  MIGRATE_IN_CODE=true # MIGRATION IN PGSQL IN CODE (RECOMMEND DISABLED IN KUBERNETES MODULE AND USE `sql/users.sql` AS JOB)
     ```
 - для работы приложения требуется backend
     - все что связано с постами требует коннекта к backend <-> redis
