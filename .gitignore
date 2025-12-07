@@ -1,5 +1,5 @@
-redis/data/
-psql/data/
+redis
+psql
 roles/geerlingguy.docker
 roles/geerlingguy.pip
 .vscode

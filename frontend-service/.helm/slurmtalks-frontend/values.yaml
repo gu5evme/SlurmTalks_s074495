@@ -1,4 +1,4 @@
-replicaCount: 2
+replicaCount: 1
 
 updateStrategy:
   maxSurge: 1
@@ -36,7 +36,7 @@ ingress:
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: slurm-talks-front.home.menich.ru
+    - host: slurm-talks-front.s074495.edu.slurm.io
       paths:
         - path: /
           pathType: ImplementationSpecific

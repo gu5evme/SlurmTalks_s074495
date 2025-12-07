@@ -3,6 +3,7 @@ kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
   name: local-storage
+  namespace: default
 provisioner: kubernetes.io/no-provisioner
 volumeBindingMode: WaitForFirstConsumer
 ---
@@ -10,6 +11,7 @@ apiVersion: v1
 kind: PersistentVolume
 metadata:
   name: slurmtalks-redis-pv
+  namespace: default
 spec:
   capacity:
     storage: 5Gi
@@ -27,12 +29,13 @@ spec:
             - key: kubernetes.io/hostname
               operator: In
               values:
-                - node-2.home.menich.ru
+                - node-2.s074495.slurm.io
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: slurmtalks-redis-pvc
+  namespace: default
 spec:
   accessModes:
     - ReadWriteOnce
@@ -45,6 +48,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: slurmtalks-redis
+  namespace: default
 spec:
   serviceName: slurmtalks-redis
   replicas: 1
@@ -102,6 +106,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: slurmtalks-redis-svc
+  namespace: default
   labels:
     app: slurmtalks-redis
 spec:
